@@ -6,8 +6,10 @@ services:
       - .env
     environment:
       - REDIS_ADDR=redis:6379
+      - DATABASE_URL=postgresql://postgres:hehe@db:5432/mydb
     depends_on:
       - redis
+      - db
     ports:
       - "3000:3000"
     networks:
@@ -19,6 +21,7 @@ services:
       - .env
     environment:
       - REDIS_ADDR=redis:6379
+      - DATABASE_URL=postgresql://postgres:hehe@db:5432/mydb
     depends_on:
       - redis
     networks:
@@ -30,6 +33,16 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+    networks:
+      - app-net
+
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: hehe
+      POSTGRES_DB: mydb
     networks:
       - app-net
 

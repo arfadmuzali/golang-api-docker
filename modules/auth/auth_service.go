@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"fmt"
+	"learn/models"
 	"learn/utils"
 	"os"
 
@@ -13,16 +13,20 @@ type TokenResponse struct {
 	Token string `json:"token"`
 }
 
-type RegisterResponse struct {
-	UserId   string `json:"userId"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-}
-
 func HandleLogin(body *LoginDto) (TokenResponse, error) {
-	if body.Username != "arfad" || body.Password != "beraktakcebok" {
-		return TokenResponse{}, fmt.Errorf("Username or Password are wrong")
+
+	db := utils.DB
+
+	user := models.User{Email: body.Email}
+
+	result := db.First(&user, "email = ?", body.Email)
+
+	if result.Error != nil {
+		return TokenResponse{}, result.Error
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err != nil {
+		return TokenResponse{}, err
 	}
 
 	redisOpt := asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")}
@@ -30,11 +34,11 @@ func HandleLogin(body *LoginDto) (TokenResponse, error) {
 	queue := asynq.NewClient(redisOpt)
 	defer queue.Close()
 
-	task, err := utils.NewEmailPayload(utils.EmailPayload{To: "arfadmuzali258@gmail.com", Subject: "Email Confirmation", Body: "this is email confimation, you logedin on x platform"})
+	task, err := utils.NewEmailPayload(utils.EmailPayload{To: user.Email, Subject: "Email Confirmation", Body: "this is email confimation, you logedin on x platform"})
 
 	queue.Enqueue(task)
 
-	token, err := utils.GenerateToken(body.Username)
+	token, err := utils.GenerateToken(user.Name)
 
 	if err != nil {
 		return TokenResponse{}, err
@@ -43,13 +47,24 @@ func HandleLogin(body *LoginDto) (TokenResponse, error) {
 	return TokenResponse{Token: token}, err
 }
 
-func HandleRegister(body *RegisterDto) (RegisterResponse, error) {
+func HandleRegister(body *RegisterDto) (models.User, error) {
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+
 	if err != nil {
-		return RegisterResponse{}, err
+		return models.User{}, err
 	}
 
-	return RegisterResponse{UserId: "abc123", Email: body.Email, Password: string(hashedPassword), Username: body.Username}, nil
+	db := utils.DB
+
+	user := models.User{Name: body.Username, Password: string(hashedPassword), Email: body.Email}
+
+	result := db.Create(&user)
+
+	if result.Error != nil {
+		return models.User{}, result.Error
+	}
+
+	return user, nil
 
 }

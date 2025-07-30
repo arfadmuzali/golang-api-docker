@@ -1,9 +1,8 @@
 package auth
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
+	"log"
 )
 
 func AuthController(api *gin.RouterGroup) {
@@ -24,14 +23,15 @@ func AuthController(api *gin.RouterGroup) {
 	})
 
 	api.POST("/register", func(ctx *gin.Context) {
+		log.Println("result again")
 		var body RegisterDto
-		fmt.Println("register result")
 		if err := ctx.ShouldBindJSON(&body); err != nil {
 			ctx.JSON(400, APIResponse{Status: 400, Message: err.Error()})
 			return
 		}
 
 		result, err := HandleRegister(&body)
+		log.Println("result again", err)
 		if err != nil {
 			ctx.JSON(400, APIResponse{Status: 400, Message: err.Error()})
 			return
